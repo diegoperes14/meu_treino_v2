@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="description" content="Diário de treino pessoal">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<title>Meu Treino</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--text:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#111827;--success:#198754}
+body{background:var(--bg);color:var(--text);padding-bottom:88px}
+body.dark{--bg:#0f172a;--card:#111827;--text:#f8fafc;--muted:#94a3b8;--border:#334155;--accent:#f8fafc}
+body.dark .card,body.dark .modal-content,body.dark .list-group-item,body.dark .accordion-item{background:var(--card);color:var(--text);border-color:var(--border)}
+body.dark .text-muted,body.dark .form-text{color:var(--muted)!important}
+body.dark .form-control,body.dark .form-select{background:#0b1220;color:#f8fafc;border-color:#475569}
+body.dark .btn-outline-dark{color:#f8fafc;border-color:#64748b}
+body.dark .btn-close{filter:invert(1)}
+.app-header{position:sticky;top:0;z-index:1030;background:var(--card);border-bottom:1px solid var(--border)}
+.group-nav{overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.group-nav::-webkit-scrollbar{display:none}
+.group-btn{min-width:105px}
+.card{background:var(--card);border-color:var(--border)}
+.exercise-card{border:0;border-radius:20px;overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,.07)}
+.exercise-card.done{border:2px solid #198754}
+.exercise-img{width:100%;height:180px;object-fit:cover;background:#e5e7eb}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:1020;background:var(--card);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
+.bottom-nav button{border:0;background:transparent;color:var(--text)}
+.small-muted{font-size:.82rem;color:var(--muted)}
+.metric{font-size:1.5rem;font-weight:800}
+.series-row{display:grid;grid-template-columns:45px 1fr 1fr 44px;gap:6px;align-items:center;margin-bottom:8px}
+.series-label{font-weight:700;text-align:center}
+.timer{font-variant-numeric:tabular-nums;font-size:2.6rem;font-weight:800}
+.sticky-mobile{position:sticky;top:92px;z-index:10}
+@media(max-width:576px){
+  .exercise-img{height:160px}
+  .series-row{grid-template-columns:38px 1fr 1fr 40px}
+}
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div class="container py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <div class="fw-bold">🏋️ Meu Treino</div>
+        <div id="dateLabel" class="small-muted"></div>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="openSearchExercise()">🔎</button>
+        <button class="btn btn-sm btn-dark" onclick="openSettings()">⚙️</button>
+      </div>
+    </div>
+    <div id="groupNav" class="group-nav d-flex gap-2 py-2"></div>
+  </div>
+</header>
+
+<main class="container py-3">
+  <div id="app"></div>
+</main>
+
+<nav class="bottom-nav">
+  <div class="container">
+    <div class="d-flex justify-content-around py-2">
+      <button onclick="showToday()">🏠<div class="small">Hoje</div></button>
+      <button onclick="showExercises()">🏋️<div class="small">Exercícios</div></button>
+      <button onclick="showHistory()">📊<div class="small">Evolução</div></button>
+      <button onclick="showSettingsPage()">⚙️<div class="small">Configurar</div></button>
+    </div>
+  </div>
+</nav>
+
+<div class="modal fade" id="exerciseModal" tabindex="-1">
+<div class="modal-dialog modal-lg"><form class="modal-content" id="exerciseForm">
+<div class="modal-header"><h5 class="modal-title" id="exerciseTitle">Exercício</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-body">
+<input type="hidden" id="exerciseId"><input type="hidden" id="exerciseGroup">
+<div class="row">
+<div class="col-md-7">
+<div class="mb-3"><label class="form-label">Nome</label><input id="exerciseName" class="form-control" required></div>
+<div class="mb-3"><label class="form-label">URL da imagem</label><input id="exerciseImage" type="url" class="form-control" placeholder="https://..."></div>
+</div>
+<div class="col-md-5">
+<div class="mb-3"><label class="form-label">Grupo muscular</label><select id="exerciseGroupSelect" class="form-select"></select></div>
+<div class="row">
+<div class="col-4"><label class="form-label">Séries</label><input id="exerciseSets" type="number" min="1" class="form-control" value="3"></div>
+<div class="col-4"><label class="form-label">Reps</label><input id="exerciseReps" type="number" min="1" class="form-control" value="10"></div>
+<div class="col-4"><label class="form-label">Carga</label><input id="exerciseWeight" type="number" min="0" step="0.5" class="form-control" value="0"></div>
+</div>
+</div></div>
+</div>
+<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-dark">Salvar</button></div>
+</form></div></div>
+
+<div class="modal fade" id="timerModal" tabindex="-1">
+<div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content text-center">
+<div class="modal-header"><h5 class="modal-title">Descanso</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-body"><div id="timerDisplay" class="timer">01:30</div><div class="d-flex justify-content-center gap-2 mt-3"><button class="btn btn-outline-secondary" onclick="adjustTimer(-15)">−15s</button><button class="btn btn-dark" id="timerToggle" onclick="toggleTimer()">Iniciar</button><button class="btn btn-outline-secondary" onclick="adjustTimer(15)">+15s</button></div><button class="btn btn-link mt-3" onclick="stopTimer()">Parar</button></div>
+</div></div></div>
+
+<div class="modal fade" id="settingsModal" tabindex="-1">
+<div class="modal-dialog modal-lg"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title">Configurações e backup</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-body">
+<ul class="nav nav-pills mb-3"><li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#settingsGeneral">Geral</button></li><li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#settingsBackup">Backup</button></li></ul>
+<div class="tab-content">
+<div class="tab-pane fade show active" id="settingsGeneral">
+<div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" id="darkModeSwitch" onchange="toggleTheme(this.checked)"><label class="form-check-label" for="darkModeSwitch">Modo escuro</label></div>
+<div class="mb-3"><label class="form-label">Descanso padrão (segundos)</label><input id="restDefault" type="number" min="0" class="form-control" value="90"></div>
+<div class="mb-3"><label class="form-label">Dias de treino</label><div id="scheduleChecks" class="row g-2"></div></div>
+</div>
+<div class="tab-pane fade" id="settingsBackup">
+<div class="d-grid gap-2">
+<button class="btn btn-dark" onclick="exportFull()">⬇️ Exportar tudo (JSON)</button>
+<button class="btn btn-outline-dark" onclick="exportHistory()">⬇️ Exportar somente histórico</button>
+<button class="btn btn-outline-dark" onclick="exportExercises()">⬇️ Exportar exercícios</button>
+<button class="btn btn-outline-primary" onclick="triggerImport()">⬆️ Importar backup</button>
+<input id="importInput" type="file" accept=".json" class="d-none" onchange="importBackup(event)">
+<button class="btn btn-outline-danger" onclick="resetAll()">🗑️ Apagar tudo</button>
+</div>
+</div></div></div></div></div></div>
+
+<div class="modal fade" id="searchModal" tabindex="-1">
+<div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Banco de exercícios</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+<input id="searchInput" class="form-control mb-3" placeholder="Ex.: supino, agachamento..." oninput="renderCatalog()">
+<div id="catalogList"></div>
+</div></div></div></div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3"><div id="toast" class="toast"><div class="toast-body"></div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const GROUPS = {
+ costas:{label:'Costas',icon:'🦍'}, pernas:{label:'Pernas',icon:'🦵'}, bracos:{label:'Braços',icon:'💪'},
+ peito:{label:'Peito',icon:'🏋️'}, abdomen:{label:'Abdômen',icon:'🔥'}, ombros:{label:'Ombros',icon:'🎯'}
+};
+const WEEK = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+const DEFAULT_CATALOG = [
+ ['Supino reto','peito'],['Supino inclinado','peito'],['Crucifixo','peito'],['Crossover','peito'],
+ ['Puxada frontal','costas'],['Remada baixa','costas'],['Remada curvada','costas'],['Remada unilateral','costas'],
+ ['Agachamento livre','pernas'],['Leg press','pernas'],['Cadeira extensora','pernas'],['Mesa flexora','pernas'],
+ ['Rosca direta','bracos'],['Rosca martelo','bracos'],['Tríceps pulley','bracos'],['Tríceps francês','bracos'],
+ ['Abdominal supra','abdomen'],['Elevação de pernas','abdomen'],['Prancha','abdomen'],
+ ['Desenvolvimento','ombros'],['Elevação lateral','ombros'],['Elevação frontal','ombros']
+].map(([name,group]) => ({name,group,image:''}));
+
+const KEY='meuTreino_v2';
+let charts = [];
+let timerSeconds = 90, timerRunning=false, timerHandle=null;
+let state = loadState();
+let page = 'today';
+function nextGroupAfter(group){
+ const order=Object.keys(GROUPS), start=order.indexOf(group);
+ for(let i=1;i<=order.length;i++){const g=order[(Math.max(start,0)+i)%order.length]; if((state.exercises[g]||[]).length) return g;}
+ return group || 'peito';
+}
+let currentGroup = state.settings.lastCompletedGroup ? nextGroupAfter(state.settings.lastCompletedGroup) : (state.settings.lastGroup || 'peito');
+
+function freshState(){ return {
+ version:2,
+ exercises:{},
+ workouts:{},
+ schedule:{domingo:[],segunda:['peito'],terca:['costas'],quarta:[],quinta:['pernas'],sexta:['bracos'],sabado:[]},
+ settings:{lastGroup:'peito',lastCompletedGroup:'',dark:false,restDefault:90}
+};}
+function loadState(){
+ try{
+   const raw=localStorage.getItem(KEY); if(!raw) return freshState();
+   const p=JSON.parse(raw), d=freshState();
+   return {...d,...p,exercises:{...d.exercises,...(p.exercises||{})},workouts:p.workouts||{},schedule:{...d.schedule,...(p.schedule||{})},settings:{...d.settings,...(p.settings||{})}};
+ }catch(e){return freshState();}
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(state));}
+function uid(){return crypto.randomUUID?crypto.randomUUID():'id-'+Date.now()+Math.random();}
+function todayKey(){return new Date().toLocaleDateString('en-CA');}
+function fmtDate(k){return new Date(k+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});}
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+function imageUrl(url,text){return url||`https://placehold.co/800x500?text=${encodeURIComponent(text||'Exercício')}`;}
+function groupsInUse(){return Object.keys(GROUPS).filter(g=>(state.exercises[g]||[]).length||state.schedule[WEEK[new Date().getDay()]]?.includes(g));}
+function ensureGroup(g){if(!state.exercises[g])state.exercises[g]=[];}
+function getWorkout(day=todayKey()){if(!state.workouts[day])state.workouts[day]={};return state.workouts[day];}
+function getRecord(day,group,id){const w=getWorkout(day); if(!w[group])w[group]={}; if(!w[group][id])w[group][id]={series:[],done:false}; return w[group][id];}
+
+function renderHeader(){
+ const groups=Object.keys(GROUPS).filter(g=>(state.exercises[g]||[]).length || Object.values(state.schedule).some(a=>a.includes(g)));
+ document.getElementById('dateLabel').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+ document.getElementById('groupNav').innerHTML=groups.map(g=>`<button class="btn ${g===currentGroup?'btn-dark':'btn-outline-secondary'} rounded-pill group-btn" onclick="setGroup('${g}')">${GROUPS[g].icon} ${GROUPS[g].label}</button>`).join('');
+}
+function setGroup(g){currentGroup=g;state.settings.lastGroup=g;save();renderHeader();page==='today'?renderToday():renderExercises();}
+function showToday(){page='today';renderHeader();renderToday();}
+function showExercises(){page='exercises';renderHeader();renderExercises();}
+function showHistory(){page='history';renderHeader();renderHistory();}
+function showSettingsPage(){page='settings';renderHeader();renderSettingsPage();}
+
+function todayPlannedGroups(){
+ const day=WEEK[new Date().getDay()];
+ const planned=(state.schedule[day]||[]).filter(g=>(state.exercises[g]||[]).length);
+ return planned;
+}
+function nextConfiguredGroup(){
+ const order=Object.keys(GROUPS); const start=Math.max(order.indexOf(currentGroup),0);
+ for(let i=1;i<=order.length;i++){const g=order[(start+i)%order.length];if((state.exercises[g]||[]).length)return g;}
+ return currentGroup;
+}
+function renderToday(){
+ const app=document.getElementById('app'), planned=todayPlannedGroups();
+ if(planned.length && !planned.includes(currentGroup)) currentGroup=planned[0];
+ const exercises=state.exercises[currentGroup]||[];
+ let completed=0,totalSeries=0,doneSeries=0;
+ exercises.forEach(e=>{const r=getRecord(todayKey(),currentGroup,e.id); totalSeries+=Number(e.sets||3); doneSeries+=r.series.filter(s=>s.done).length; if(r.done)completed++;});
+ const pct=totalSeries?Math.round(doneSeries/totalSeries*100):0;
+ app.innerHTML=`
+ <div class="card border-0 shadow-sm mb-3"><div class="card-body">
+  <div class="d-flex justify-content-between gap-3"><div><div class="small-muted">TREINO DE HOJE</div><h3 class="mb-1">${GROUPS[currentGroup].icon} ${GROUPS[currentGroup].label}</h3>${planned.length?`<div class="small-muted">Programado: ${planned.map(g=>GROUPS[g].label).join(' + ')}</div>`:'<div class="small-muted">Grupo selecionado manualmente</div>'}</div>
+  <div class="text-end"><div class="metric">${completed}/${exercises.length}</div><div class="small-muted">exercícios</div></div></div>
+  <div class="progress mt-3" style="height:8px"><div class="progress-bar bg-success" style="width:${pct}%"></div></div>
+  <div class="d-flex justify-content-between mt-2 small-muted"><span>${doneSeries}/${totalSeries} séries concluídas</span><span>${pct}%</span></div>
+ </div></div>
+ ${exercises.length?`<div class="row g-3">${exercises.map(e=>renderExerciseCard(e)).join('')}</div>`:
+ `<div class="card border-0 shadow-sm"><div class="card-body text-center py-5"><div style="font-size:4rem">${GROUPS[currentGroup].icon}</div><h4>Nenhum exercício neste grupo</h4><p class="text-muted">Adicione exercícios para começar.</p><button class="btn btn-dark" onclick="openExerciseForm('${currentGroup}')">+ Adicionar exercício</button></div></div>`}
+ ${planned.length?`<div class="d-flex gap-2 mt-3"><button class="btn btn-outline-secondary flex-fill" onclick="setGroup('${planned[0]}')">Primeiro grupo</button><button class="btn btn-dark flex-fill" onclick="setGroup('${planned.length>1?planned[1]:nextConfiguredGroup()}')">Próximo grupo →</button></div>`:''}
+ `;
+}
+function renderExerciseCard(e){
+ const r=getRecord(todayKey(),currentGroup,e.id);
+ const seriesCount=Number(e.sets||3), series=Array.from({length:seriesCount},(_,i)=>r.series[i]||{weight:e.weight||0,reps:e.reps||10,done:false});
+ const done=series.every(s=>s.done);
+ return `<div class="col-12 col-lg-6"><div class="card exercise-card ${done?'done':''}">
+ <img src="${esc(imageUrl(e.image,e.name))}" class="exercise-img" onerror="this.src='https://placehold.co/800x500?text=Imagem+indisponível'">
+ <div class="card-body">
+  <div class="d-flex justify-content-between"><div><h5 class="mb-1">${esc(e.name)}</h5><div class="small-muted">${seriesCount} séries planejadas</div></div><button class="btn btn-sm btn-outline-secondary" onclick="openExerciseForm('${currentGroup}','${e.id}')">✏️</button></div>
+  <div class="mt-3">${series.map((s,i)=>`<div class="series-row"><div class="series-label">${i+1}</div><input type="number" min="0" step="0.5" class="form-control" value="${esc(s.weight)}" onchange="updateSeries('${currentGroup}','${e.id}',${i},'weight',this.value)"><input type="number" min="0" class="form-control" value="${esc(s.reps)}" onchange="updateSeries('${currentGroup}','${e.id}',${i},'reps',this.value)"><button class="btn ${s.done?'btn-success':'btn-outline-secondary'}" onclick="toggleSeries('${currentGroup}','${e.id}',${i})">${s.done?'✓':'○'}</button></div>`).join('')}</div>
+  <div class="d-flex gap-2 mt-3"><button class="btn btn-outline-dark flex-fill" onclick="openTimer()">⏱ Descanso</button><button class="btn ${done?'btn-success':'btn-dark'} flex-fill" onclick="toggleExerciseDone('${currentGroup}','${e.id}')">${done?'✓ Concluído':'Concluir exercício'}</button></div>
+ </div></div></div>`;
+}
+function updateSeries(group,id,i,field,val){const r=getRecord(todayKey(),group,id);if(!r.series[i])r.series[i]={};r.series[i][field]=Number(val)||0;save();renderToday();}
+function toggleSeries(group,id,i){const r=getRecord(todayKey(),group,id);if(!r.series[i])r.series[i]={};r.series[i].done=!r.series[i].done;r.done=r.series.length && r.series.every(s=>s.done);r.updatedAt=new Date().toISOString();
+if(r.series[i].done){ state.settings.lastCompletedGroup=group; state.settings.lastGroup=nextGroupAfter(group); currentGroup=nextGroupAfter(group); }
+save();renderToday();renderHeader();if(r.series[i].done)openTimer();}
+function toggleExerciseDone(group,id){
+ const r=getRecord(todayKey(),group,id);
+ const exercise=state.exercises[group].find(e=>e.id===id);
+ const n=Number(exercise?.sets||3);
+ r.series=Array.from({length:n},(_,i)=>({...r.series[i],done:!r.done}));
+ r.done=!r.done;
+ r.updatedAt=new Date().toISOString();
+ if(r.done){state.settings.lastCompletedGroup=group;state.settings.lastGroup=nextGroupAfter(group);currentGroup=nextGroupAfter(group);}
+ save();renderToday();renderHeader();
+}
+
+function showExercises(){
+ page='exercises';renderHeader();
+ const app=document.getElementById('app');
+ app.innerHTML=`<div class="d-flex justify-content-between align-items-center mb-3"><div><h3 class="mb-0">Biblioteca de exercícios</h3><div class="small-muted">Cadastre, edite ou adicione exercícios prontos.</div></div><button class="btn btn-dark" onclick="openExerciseForm('${currentGroup}')">+ Novo</button></div>
+ <div class="row g-3">${Object.keys(GROUPS).map(g=>`<div class="col-12"><div class="card border-0 shadow-sm"><div class="card-body"><div class="d-flex justify-content-between align-items-center"><h5>${GROUPS[g].icon} ${GROUPS[g].label}</h5><button class="btn btn-sm btn-outline-dark" onclick="openExerciseForm('${g}')">+ Adicionar</button></div>${(state.exercises[g]||[]).length?`<div class="list-group mt-2">${state.exercises[g].map(e=>`<div class="list-group-item"><div class="d-flex gap-2 align-items-center"><img src="${esc(imageUrl(e.image,e.name))}" width="70" height="50" style="object-fit:cover;border-radius:8px" onerror="this.src='https://placehold.co/70x50?text=Foto'"><div class="flex-grow-1"><strong>${esc(e.name)}</strong><div class="small-muted">${e.sets} séries · ${e.reps} reps · ${e.weight} kg</div></div><button class="btn btn-sm btn-outline-secondary me-1" onclick="openExerciseForm('${g}','${e.id}')">✏️</button><button class="btn btn-sm btn-outline-danger" onclick="deleteExercise('${g}','${e.id}')">🗑️</button></div></div>`).join('')}</div>`:'<p class="text-muted mb-0 mt-2">Nenhum exercício cadastrado.</p>'}</div></div></div>`).join('')}</div>`;
+}
+function openExerciseForm(group,id=''){
+ document.getElementById('exerciseForm').reset();
+ document.getElementById('exerciseGroupSelect').innerHTML=Object.entries(GROUPS).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+ const e=(state.exercises[group]||[]).find(x=>x.id===id);
+ document.getElementById('exerciseId').value=e?.id||'';
+ document.getElementById('exerciseGroup').value=group;
+ document.getElementById('exerciseGroupSelect').value=e?.group||group;
+ document.getElementById('exerciseName').value=e?.name||'';
+ document.getElementById('exerciseImage').value=e?.image||'';
+ document.getElementById('exerciseSets').value=e?.sets||3;
+ document.getElementById('exerciseReps').value=e?.reps||10;
+ document.getElementById('exerciseWeight').value=e?.weight||0;
+ document.getElementById('exerciseTitle').textContent=e?'Editar exercício':'Novo exercício';
+ new bootstrap.Modal('#exerciseModal').show();
+}
+document.getElementById('exerciseForm').addEventListener('submit',e=>{
+ e.preventDefault();
+ const oldGroup=document.getElementById('exerciseGroup').value, group=document.getElementById('exerciseGroupSelect').value,id=document.getElementById('exerciseId').value||uid();
+ const obj={id,name:document.getElementById('exerciseName').value.trim(),image:document.getElementById('exerciseImage').value.trim(),sets:Number(document.getElementById('exerciseSets').value)||3,reps:Number(document.getElementById('exerciseReps').value)||10,weight:Number(document.getElementById('exerciseWeight').value)||0};
+ if(oldGroup!==group)state.exercises[oldGroup]=(state.exercises[oldGroup]||[]).filter(x=>x.id!==id);
+ ensureGroup(group);const idx=state.exercises[group].findIndex(x=>x.id===id);if(idx>=0)state.exercises[group][idx]=obj;else state.exercises[group].push(obj);
+ save();bootstrap.Modal.getInstance(document.getElementById('exerciseModal')).hide();currentGroup=group;renderHeader();page==='exercises'?renderExercises():renderToday();toast('Exercício salvo.');
+});
+function renderExercises(){showExercises();}
+function deleteExercise(g,id){if(!confirm('Excluir este exercício?'))return;state.exercises[g]=(state.exercises[g]||[]).filter(e=>e.id!==id);save();renderExercises();toast('Exercício excluído.');}
+
+function renderHistory(){
+ const app=document.getElementById('app');
+ const sessions=Object.keys(state.workouts).sort().reverse();
+ const stats=calculateStats();
+ app.innerHTML=`<div class="d-flex justify-content-between align-items-center mb-3"><div><h3 class="mb-0">Evolução</h3><div class="small-muted">Histórico, volume e progressão.</div></div><button class="btn btn-outline-dark btn-sm" onclick="showHistory()">↻ Atualizar</button></div>
+ <div class="row g-3 mb-3">
+ ${[['Treinos',stats.workouts],['Séries',stats.series],['Volume',stats.volume.toFixed(1)+' kg'],['Recordes',stats.records]].map(([a,b])=>`<div class="col-6 col-lg-3"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small-muted">${a}</div><div class="metric">${b}</div></div></div></div>`).join('')}</div>
+ <div class="card border-0 shadow-sm mb-3"><div class="card-body"><h5>Volume por dia</h5><canvas id="volumeChart" height="110"></canvas></div></div>
+ <div class="card border-0 shadow-sm mb-3"><div class="card-body"><h5>Carga máxima por exercício</h5><select id="historyExercise" class="form-select mb-3" onchange="renderExerciseChart()">${allExerciseOptions()}</select><canvas id="exerciseChart" height="120"></canvas></div></div>
+ <div class="card border-0 shadow-sm"><div class="card-body"><h5>Últimos treinos</h5>${sessions.length?sessions.slice(0,30).map(renderSession).join(''):'<p class="text-muted mb-0">Nenhum histórico.</p>'}</div></div>`;
+ drawVolumeChart();renderExerciseChart();
+}
+function allExerciseOptions(){const all=[];Object.entries(state.exercises).forEach(([g,arr])=>arr.forEach(e=>all.push({g,e})));return all.map(x=>`<option value="${esc(x.e.id)}">${GROUPS[x.g]?.label||x.g} — ${esc(x.e.name)}</option>`).join('');}
+function renderSession(day){let rows='';Object.entries(state.workouts[day]).forEach(([g,records])=>Object.entries(records).forEach(([id,r])=>{if(!r.done)return;const e=(state.exercises[g]||[]).find(x=>x.id===id);rows+=`<li class="list-group-item d-flex justify-content-between"><span>${GROUPS[g]?.icon||''} ${esc(e?.name||'Exercício')}</span><span>${r.series.filter(s=>s.done).length} séries</span></li>`;}));return rows?`<div class="mb-3"><h6 class="mb-2">${fmtDate(day)}</h6><ul class="list-group">${rows}</ul></div>`:''}
+function calculateStats(){let workouts=0,series=0,volume=0,records=0;const maxByEx={};Object.entries(state.workouts).forEach(([day,groups])=>{let any=false;Object.entries(groups).forEach(([g,rs])=>Object.entries(rs).forEach(([id,r])=>{const done=r.series.filter(s=>s.done);if(done.length){any=true;series+=done.length;volume+=done.reduce((a,s)=>a+(Number(s.weight)||0)*(Number(s.reps)||0),0);const max=Math.max(...done.map(s=>Number(s.weight)||0),0);maxByEx[id]=Math.max(maxByEx[id]||0,max);}}));if(any)workouts++;});records=Object.values(maxByEx).filter(v=>v>0).length;return {workouts,series,volume,records,maxByEx};}
+function drawVolumeChart(){
+ charts.forEach(c=>c.destroy()); charts=[];
+ const keys=Object.keys(state.workouts).sort().slice(-14);
+ const values=keys.map(k=>{
+  let v=0;
+  Object.values(state.workouts[k]).forEach(groupRecords=>{
+   Object.values(groupRecords).forEach(r=>{
+    (r.series||[]).filter(s=>s.done).forEach(sr=>{v+=(Number(sr.weight)||0)*(Number(sr.reps)||0);});
+   });
+  });
+  return v;
+ });
+ charts.push(new Chart(document.getElementById('volumeChart'),{type:'line',data:{labels:keys.map(k=>k.slice(5)),datasets:[{label:'Volume (kg)',data:values,tension:.35}]},options:{responsive:true,plugins:{legend:{display:false}}}}));
+}
+function renderExerciseChart(){const select=document.getElementById('historyExercise');if(!select)return;const id=select.value;const points=[];Object.keys(state.workouts).sort().forEach(day=>Object.entries(state.workouts[day]).forEach(([g,rs])=>{const r=rs[id];if(r){const m=Math.max(...r.series.filter(s=>s.done).map(s=>Number(s.weight)||0),0);if(m)points.push([day,m]);}}));const old=charts.pop();old?.destroy();charts.push(new Chart(document.getElementById('exerciseChart'),{type:'line',data:{labels:points.map(p=>p[0].slice(5)),datasets:[{label:'Carga máxima (kg)',data:points.map(p=>p[1]),tension:.35}]},options:{responsive:true}}));}
+
+function renderSettingsPage(){
+ const app=document.getElementById('app');
+ const selected=state.schedule;
+ app.innerHTML=`<div class="card border-0 shadow-sm mb-3"><div class="card-body"><h4>Configuração do treino</h4><p class="text-muted">Escolha os grupos para cada dia.</p>
+ <div class="row g-3">${['domingo','segunda','terca','quarta','quinta','sexta','sabado'].map(day=>`<div class="col-12 col-md-6"><div class="border rounded p-3"><strong>${day}</strong><div class="mt-2">${Object.entries(GROUPS).map(([g,v])=>`<div class="form-check"><input class="form-check-input sched" type="checkbox" data-day="${day}" data-group="${g}" ${selected[day]?.includes(g)?'checked':''} onchange="updateSchedule(this)"><label class="form-check-label">${v.icon} ${v.label}</label></div>`).join('')}</div></div></div>`).join('')}</div>
+ </div></div>
+ <div class="card border-0 shadow-sm mb-3"><div class="card-body"><h5>Configurações</h5><div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" ${state.settings.dark?'checked':''} onchange="toggleTheme(this.checked)"><label class="form-check-label">Modo escuro</label></div><div class="row"><div class="col-md-4"><label class="form-label">Descanso padrão (s)</label><input id="restPage" type="number" class="form-control" min="0" value="${state.settings.restDefault}" onchange="state.settings.restDefault=Number(this.value)||90;save()"></div></div></div></div>
+ <div class="card border-0 shadow-sm"><div class="card-body"><h5>Dados</h5><div class="d-grid d-md-flex gap-2"><button class="btn btn-dark" onclick="exportFull()">⬇️ Exportar tudo</button><button class="btn btn-outline-dark" onclick="exportHistory()">⬇️ Histórico</button><button class="btn btn-outline-dark" onclick="exportExercises()">⬇️ Exercícios</button><button class="btn btn-outline-primary" onclick="triggerImport()">⬆️ Importar</button><button class="btn btn-outline-danger" onclick="resetAll()">🗑️ Apagar tudo</button></div></div></div>`;
+}
+function updateSchedule(cb){const d=cb.dataset.day,g=cb.dataset.group;state.schedule[d]=state.schedule[d]||[];if(cb.checked&&!state.schedule[d].includes(g))state.schedule[d].push(g);if(!cb.checked)state.schedule[d]=state.schedule[d].filter(x=>x!==g);save();}
+
+function openSettings(){document.getElementById('darkModeSwitch').checked=state.settings.dark;document.getElementById('restDefault').value=state.settings.restDefault;document.getElementById('scheduleChecks').innerHTML='';new bootstrap.Modal('#settingsModal').show();}
+function toggleTheme(on){state.settings.dark=on;document.body.classList.toggle('dark',on);save();}
+function openTimer(){timerSeconds=Number(state.settings.restDefault)||90;updateTimerDisplay();document.getElementById('timerToggle').textContent='Iniciar';timerRunning=false;new bootstrap.Modal('#timerModal').show();}
+function updateTimerDisplay(){const m=String(Math.floor(timerSeconds/60)).padStart(2,'0'),s=String(timerSeconds%60).padStart(2,'0');document.getElementById('timerDisplay').textContent=`${m}:${s}`;}
+function adjustTimer(n){timerSeconds=Math.max(0,timerSeconds+n);updateTimerDisplay();}
+function toggleTimer(){if(timerRunning){clearInterval(timerHandle);timerRunning=false;document.getElementById('timerToggle').textContent='Continuar';return}timerRunning=true;document.getElementById('timerToggle').textContent='Pausar';timerHandle=setInterval(()=>{timerSeconds--;updateTimerDisplay();if(timerSeconds<=0){clearInterval(timerHandle);timerRunning=false;document.getElementById('timerToggle').textContent='Iniciar';navigator.vibrate?.([200,100,200]);toast('Descanso terminado!');}},1000);}
+function stopTimer(){clearInterval(timerHandle);timerRunning=false;timerSeconds=Number(state.settings.restDefault)||90;updateTimerDisplay();bootstrap.Modal.getInstance(document.getElementById('timerModal'))?.hide();}
+function openSearchExercise(){renderCatalog();new bootstrap.Modal('#searchModal').show();}
+function renderCatalog(){const q=(document.getElementById('searchInput')?.value||'').toLowerCase();const items=DEFAULT_CATALOG.filter(x=>`${x.name} ${x.group}`.toLowerCase().includes(q));document.getElementById('catalogList').innerHTML=items.map((x,i)=>`<div class="list-group-item d-flex align-items-center gap-3"><div class="flex-grow-1"><strong>${x.name}</strong><div class="small-muted">${GROUPS[x.group].label}</div></div><button class="btn btn-sm btn-dark" onclick="addCatalog(${i})">Adicionar</button></div>`).join('')||'<p class="text-muted">Nenhum resultado.</p>';}
+function addCatalog(i){const x=DEFAULT_CATALOG[i];ensureGroup(x.group);if(state.exercises[x.group].some(e=>e.name.toLowerCase()===x.name.toLowerCase())){toast('Esse exercício já está cadastrado.');return}state.exercises[x.group].push({id:uid(),name:x.name,image:x.image,sets:3,reps:10,weight:0});save();bootstrap.Modal.getInstance(document.getElementById('searchModal')).hide();currentGroup=x.group;page='today';renderHeader();renderToday();toast('Exercício adicionado ao treino.');}
+
+function download(filename,object){const blob=new Blob([JSON.stringify(object,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);}
+function exportFull(){download(`meu-treino-backup-${todayKey()}.json`,state);toast('Backup completo exportado.');}
+function exportHistory(){download(`meu-treino-historico-${todayKey()}.json`,{version:2,workouts:state.workouts});}
+function exportExercises(){download(`meu-treino-exercicios-${todayKey()}.json`,{version:2,exercises:state.exercises});}
+function triggerImport(){document.getElementById('importInput').click();}
+function importBackup(ev){const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(r.result);if(p.workouts&&p.exercises){state={...freshState(),...p};}else if(p.workouts){state.workouts=p.workouts;}else if(p.exercises){state.exercises=p.exercises;}else throw 0;save();currentGroup=state.settings.lastCompletedGroup?nextGroupAfter(state.settings.lastCompletedGroup):(state.settings.lastGroup||'peito');renderHeader();showToday();toast('Dados importados com sucesso.')}catch(e){alert('Arquivo JSON inválido ou incompatível.')}};r.readAsText(file);ev.target.value='';}
+function resetAll(){if(!confirm('Apagar exercícios, histórico e configurações? Esta ação não pode ser desfeita.'))return;state=freshState();save();currentGroup='peito';document.body.classList.remove('dark');bootstrap.Modal.getInstance(document.getElementById('settingsModal'))?.hide();showToday();toast('Todos os dados foram apagados.');}
+function toast(msg){const el=document.getElementById('toast');el.querySelector('.toast-body').textContent=msg;bootstrap.Toast.getOrCreateInstance(el,{delay:2200}).show();}
+
+// Corrige o formulário de configurações da modal para manter tudo utilizável.
+function openSettings(){
+ document.getElementById('darkModeSwitch').checked=state.settings.dark;
+ document.getElementById('restDefault').value=state.settings.restDefault;
+ document.getElementById('scheduleChecks').innerHTML=['domingo','segunda','terca','quarta','quinta','sexta','sabado'].map(d=>`<div class="col-12 col-md-6"><div class="border rounded p-2"><strong>${d}</strong>${Object.entries(GROUPS).map(([g,v])=>`<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" ${state.schedule[d]?.includes(g)?'checked':''} onchange="setSchedule('${d}','${g}',this.checked)"><label class="form-check-label">${v.label}</label></div>`).join('')}</div></div>`).join('');
+ new bootstrap.Modal('#settingsModal').show();
+}
+function setSchedule(day,group,on){state.schedule[day]=state.schedule[day]||[];if(on&&!state.schedule[day].includes(group))state.schedule[day].push(group);if(!on)state.schedule[day]=state.schedule[day].filter(x=>x!==group);save();}
+
+document.getElementById('restDefault').addEventListener?.('change',e=>{state.settings.restDefault=Number(e.target.value)||90;save()});
+document.getElementById('darkModeSwitch').addEventListener?.('change',e=>{state.settings.dark=e.target.checked;document.body.classList.toggle('dark',e.target.checked);save();});
+document.getElementById('restDefault')?.addEventListener('change',e=>{state.settings.restDefault=Number(e.target.value)||90;save();});
+document.getElementById('darkModeSwitch')?.addEventListener('change',e=>{state.settings.dark=e.target.checked;document.body.classList.toggle('dark',e.target.checked);save();});
+
+
+function boot(){
+ document.body.classList.toggle('dark',!!state.settings.dark);
+ renderHeader();
+ showToday();
+ if(!Object.keys(state.exercises).some(g=>(state.exercises[g]||[]).length)){
+   // Biblioteca inicial fica disponível sem ser automaticamente adicionada ao treino.
+ }
+}
+boot();
+
+</script>
+</body>
+</html>
