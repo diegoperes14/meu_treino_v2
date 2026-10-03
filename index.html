@@ -356,7 +356,14 @@ ${exercises.length ? `<div class="row g-3">${exercises.map(exercise => renderExe
 function renderExerciseCard(day, exercise) {
 const record = getRecord(todayKey(), day, exercise.id);
 const seriesCount = Number(exercise.sets || 3);
-const series = Array.from({ length: seriesCount }, (_, index) => record.series[index] || { weight: exercise.weight || 0, reps: exercise.reps || 10, done: false });
+const series = Array.from({ length: seriesCount }, (_, index) => {
+ const saved = record.series[index] || {};
+ return {
+  weight: saved.weight ?? exercise.weight ?? 0,
+  reps: saved.reps ?? exercise.reps ?? 10,
+  done: !!saved.done
+ };
+});
 const done = series.every(item => item.done);
 const muscle = MUSCLE_GROUPS[exercise.group]?.label || exercise.group || '—';
 return `<div class="col-12 col-lg-6"><div class="card exercise-card ${done ? 'done' : ''}">
@@ -369,8 +376,12 @@ return `<div class="col-12 col-lg-6"><div class="card exercise-card ${done ? 'do
 }
 function updateSeries(day, id, index, field, value) {
 const record = getRecord(todayKey(), day, id);
+const exercise = (state.exercises[day] || []).find(item => item.id === id);
 if (!record.series[index]) record.series[index] = {};
 record.series[index][field] = Number(value) || 0;
+if (exercise && field === 'weight') {
+ exercise.weight = Number(value) || 0;
+}
 save();
 page === 'today' ? renderToday() : renderExercises();
 }
@@ -415,7 +426,7 @@ document.getElementById('exerciseName').value = current?.name || '';
 document.getElementById('exerciseImage').value = current?.image || '';
 document.getElementById('exerciseSets').value = current?.sets || 3;
 document.getElementById('exerciseReps').value = current?.reps || 10;
-document.getElementById('exerciseWeight').value = current?.weight || 0;
+document.getElementById('exerciseWeight').value = current?.weight ?? 0;
 document.getElementById('exerciseTitle').textContent = current ? 'Editar exercício' : 'Novo exercício';
 new bootstrap.Modal('#exerciseModal').show();
 }
