@@ -33,6 +33,23 @@ body.dark .btn-close{filter:invert(1)}
 .series-label{font-weight:700;text-align:center}
 .timer{font-variant-numeric:tabular-nums;font-size:2.6rem;font-weight:800}
 .sticky-mobile{position:sticky;top:92px;z-index:10}
+.checkout-card-preview{position:relative;width:100%;max-width:360px;aspect-ratio:9/16;border-radius:22px;overflow:hidden;background:#0b0f14;box-shadow:0 16px 36px rgba(0,0,0,.28)}
+.checkout-card-preview.feed{aspect-ratio:4/5}
+.checkout-card-photo{position:absolute;inset:0;background-size:cover;background-position:center}
+.checkout-card-overlay{display:none}
+.checkout-card-content{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:18px}
+.checkout-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;background:rgba(0,0,0,.46);backdrop-filter:blur(2px);font-size:.74rem;font-weight:700;letter-spacing:.04em}
+.checkout-badge-dot{width:9px;height:9px;border-radius:50%;background:#b8ff2c}
+.checkout-title{font-size:1.15rem;font-weight:800;line-height:1.2}
+.checkout-subtitle{font-size:.78rem;opacity:.88}
+.checkout-session{font-size:.82rem;font-weight:700;letter-spacing:.03em}
+.checkout-card-info{margin-top:auto;padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(8,12,18,.82)}
+.checkout-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.checkout-stat{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:8px 9px}
+.checkout-stat .value{font-size:.95rem;font-weight:800;line-height:1.1}
+.checkout-stat .label{font-size:.7rem;opacity:.78}
+.checkout-brand{font-size:.72rem;opacity:.9}
+.checkout-template-btn.active,.checkout-format-btn.active{border-color:#198754!important;background:#198754!important;color:#fff!important}
 @media(max-width:576px){
   .exercise-img{height:160px}
   .series-row{grid-template-columns:38px 1fr 1fr 40px}
@@ -109,6 +126,8 @@ body.dark .btn-close{filter:invert(1)}
 <div class="tab-pane fade show active" id="settingsGeneral">
 <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" id="darkModeSwitch" onchange="toggleTheme(this.checked)"><label class="form-check-label" for="darkModeSwitch">Modo escuro</label></div>
 <div class="mb-3"><label class="form-label">Descanso padrão (segundos)</label><input id="restDefault" type="number" min="0" class="form-control" value="90"></div>
+<div class="mb-3"><label class="form-label">Nome para cartão de treino</label><input id="profileNameInput" class="form-control" maxlength="42" placeholder="Ex.: Diego"></div>
+<div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" id="hideNameSwitch"><label class="form-check-label" for="hideNameSwitch">Ocultar nome por padrão no compartilhamento</label></div>
 <p class="text-muted mb-0">As categorias agora seguem os dias da semana.</p>
 </div>
 <div class="tab-pane fade" id="settingsBackup">
@@ -134,18 +153,51 @@ body.dark .btn-close{filter:invert(1)}
 <div class="modal-body">
  <div class="text-center mb-3"><div class="fw-bold fs-5">🎉 Treino concluído!</div><div class="small-muted">Adicione uma foto para registrar o seu resultado.</div></div>
  <input id="checkoutPhotoInput" type="file" accept="image/*" class="d-none" onchange="handleCheckoutPhoto(this.files && this.files[0])">
- <div class="d-grid gap-2">
-  <button class="btn btn-dark" onclick="document.getElementById('checkoutPhotoInput').removeAttribute('capture'); document.getElementById('checkoutPhotoInput').click();">📷 Adicionar imagem</button>
+ <div class="d-grid gap-2 mb-3">
+  <button class="btn btn-dark" type="button" onclick="openCheckoutFilePicker('camera')">📸 Tirar foto do check</button>
+  <button class="btn btn-outline-dark" type="button" onclick="openCheckoutFilePicker('gallery')">🖼️ Escolher da galeria</button>
+ </div>
+ <div class="d-flex flex-wrap gap-2 mb-3">
+  <button id="checkoutTemplateNeon" class="btn btn-sm btn-outline-success checkout-template-btn active" type="button" onclick="setCheckoutTemplate('neon')">Template Neon</button>
+  <button id="checkoutTemplateGraphite" class="btn btn-sm btn-outline-secondary checkout-template-btn" type="button" onclick="setCheckoutTemplate('graphite')">Template Grafite</button>
+  <button id="checkoutFormatStory" class="btn btn-sm btn-outline-dark checkout-format-btn active" type="button" onclick="setCheckoutFormat('story')">9:16 Story</button>
+  <button id="checkoutFormatFeed" class="btn btn-sm btn-outline-dark checkout-format-btn" type="button" onclick="setCheckoutFormat('feed')">4:5 Feed</button>
  </div>
  <div id="checkoutPreviewWrap" class="mt-3 d-none">
-  <div class="border rounded overflow-hidden bg-light">
-   <img id="checkoutPreview" class="img-fluid w-100" style="display:block;max-height:480px;object-fit:cover" alt="Preview do treino">
+  <div class="d-flex justify-content-center">
+   <div id="checkoutCardPreview" class="checkout-card-preview">
+    <div id="checkoutCardPhoto" class="checkout-card-photo"></div>
+    <div id="checkoutCardOverlay" class="checkout-card-overlay"></div>
+    <div class="checkout-card-content text-white">
+     <div>
+      <div class="checkout-badge"><span class="checkout-badge-dot"></span> TREINO CONCLUÍDO</div>
+      <div id="checkoutPreviewDate" class="checkout-subtitle mt-2"></div>
+     </div>
+     <div id="checkoutCardInfoPanel" class="checkout-card-info">
+      <div id="checkoutPreviewName" class="checkout-title"></div>
+      <div id="checkoutPreviewWorkout" class="checkout-session mt-1"></div>
+      <div id="checkoutPreviewStats" class="checkout-stats mt-2"></div>
+      <div id="checkoutPreviewMotivation" class="checkout-subtitle mt-2">Consistência vence.</div>
+      <div class="checkout-brand mt-2">by Diego Lima</div>
+     </div>
+    </div>
+   </div>
   </div>
+  <div class="d-grid mt-3">
+   <button class="btn btn-outline-secondary" type="button" onclick="redoCheckoutPhoto()">🔁 Refazer foto</button>
+  </div>
+ </div>
+ <div class="form-check mt-3">
+  <input class="form-check-input" type="checkbox" id="checkoutHideName">
+  <label class="form-check-label" for="checkoutHideName">Ocultar nome no cartão</label>
  </div>
 </div>
 <div class="modal-footer justify-content-between">
- <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
- <button id="saveCheckoutBtn" type="button" class="btn btn-success d-none" onclick="saveCheckoutImage()">💾 Salvar na galeria</button>
+ <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar / Voltar</button>
+ <div class="d-flex gap-2">
+  <button id="shareCheckoutBtn" type="button" class="btn btn-dark d-none" onclick="shareCheckoutImage()">📤 Compartilhar</button>
+  <button id="saveCheckoutBtn" type="button" class="btn btn-success d-none" onclick="saveCheckoutImage()">💾 Salvar foto</button>
+ </div>
 </div>
 </div></div></div>
  
@@ -181,6 +233,11 @@ const DEFAULT_CATALOG = [
 ].map(([name, group]) => ({ name, group, image: '' }));
 
 const KEY = 'meuTreino_v3';
+const CHECKOUT_TEMPLATES = {
+ neon: { accent: '#b8ff2c', panel: 'rgba(6, 12, 18, 0.86)', chip: 'rgba(0,0,0,0.46)' },
+ graphite: { accent: '#22c55e', panel: 'rgba(12, 14, 18, 0.9)', chip: 'rgba(0,0,0,0.46)' }
+};
+const CHECKOUT_MOTIVATION = ['Consistência vence.', 'Mais um passo concluído.', 'Disciplina em alta.'];
 let charts = [];
 let timerSeconds = 90;
 let timerRunning = false;
@@ -188,6 +245,15 @@ let timerHandle = null;
 let state = loadState();
 let page = 'today';
 let currentDay = isDayKey(state.settings.lastDay) ? state.settings.lastDay : dayFromDate(new Date());
+let checkoutDraft = {
+ day: currentDay,
+ date: todayKey(),
+ sourceUrl: '',
+ template: 'neon',
+ format: 'story',
+ hideName: !!state.settings.hideNameOnShare,
+ busy: false
+};
 
 function dayFromDate(date = new Date()) {
 return DAY_ORDER[date.getDay()];
@@ -197,10 +263,11 @@ return DAY_ORDER.includes(value);
 }
 function freshState() {
 return {
- version: 3,
+ version: 4,
  exercises: Object.fromEntries(DAY_ORDER.map(day => [day, []])),
  workouts: {},
- settings: { lastDay: dayFromDate(new Date()), dark: false, restDefault: 90 }
+ sessionMeta: {},
+ settings: { lastDay: dayFromDate(new Date()), dark: false, restDefault: 90, profileName: '', hideNameOnShare: false }
 };
 }
 function normalizeState(parsed) {
@@ -210,6 +277,7 @@ function normalizeState(parsed) {
   ...parsed,
   exercises: Object.fromEntries(DAY_ORDER.map(day => [day, []])),
   workouts: {},
+  sessionMeta: parsed.sessionMeta || {},
   settings: { ...base.settings, ...(parsed.settings || {}) }
  };
  const oldExercises = parsed.exercises || {};
@@ -298,6 +366,52 @@ if (!workout[day]) workout[day] = {};
 if (!workout[day][id]) workout[day][id] = { series: [], done: false };
 return workout[day][id];
 }
+function getSessionMeta(date, day, create = true) {
+ if (!state.sessionMeta || typeof state.sessionMeta !== 'object') state.sessionMeta = {};
+ if (!state.sessionMeta[date]) {
+  if (!create) return null;
+  state.sessionMeta[date] = {};
+ }
+ if (!state.sessionMeta[date][day] && create) state.sessionMeta[date][day] = {};
+ return state.sessionMeta[date][day] || null;
+}
+function markSessionStarted(day, date = todayKey()) {
+ const meta = getSessionMeta(date, day, true);
+ if (!meta.startedAt) meta.startedAt = new Date().toISOString();
+}
+function hasCompletedWorkoutOnDay(date, day) {
+ const meta = getSessionMeta(date, day, false);
+ if (meta?.completedAt) return true;
+ const records = state.workouts?.[date]?.[day] || {};
+ return Object.values(records).some(record => {
+  if (!record || typeof record !== 'object') return false;
+  if (record.done) return true;
+  return (record.series || []).some(item => item?.done);
+ });
+}
+function updateSessionCompletion(day, date = todayKey()) {
+ const meta = getSessionMeta(date, day, true);
+ if (areAllExercisesDoneForDay(day)) {
+  if (!meta.completedAt) meta.completedAt = new Date().toISOString();
+ } else if (meta.completedAt) {
+  delete meta.completedAt;
+ }
+}
+function getWorkoutSequence(date = todayKey(), day = currentDay) {
+ if (!hasCompletedWorkoutOnDay(date, day)) return null;
+ const sessions = [];
+ Object.keys(state.workouts || {}).sort().forEach(key => {
+  DAY_ORDER.forEach(dayKey => {
+   if (!hasCompletedWorkoutOnDay(key, dayKey)) return;
+   const meta = getSessionMeta(key, dayKey, false) || {};
+   const stamp = meta.completedAt || meta.startedAt || `${key}T12:00:00`;
+   sessions.push({ key, day: dayKey, stamp: new Date(stamp).getTime() || Number.MAX_SAFE_INTEGER });
+  });
+ });
+ sessions.sort((a, b) => a.stamp - b.stamp);
+ const index = sessions.findIndex(item => item.key === date && item.day === day);
+ return index >= 0 ? index + 1 : null;
+}
 function findExerciseById(id) {
 for (const day of DAY_ORDER) {
  const exercise = (state.exercises[day] || []).find(item => item.id === id);
@@ -346,6 +460,7 @@ renderSettingsPage();
 function renderToday() {
 const app = document.getElementById('app');
 const exercises = state.exercises[currentDay] || [];
+const allDone = areAllExercisesDoneForDay(currentDay);
 const completed = exercises.filter(exercise => {
  const record = getRecord(todayKey(), currentDay, exercise.id);
  return record.done;
@@ -370,6 +485,7 @@ app.innerHTML = `
  </div>
  <div class="progress mt-3" style="height:8px"><div class="progress-bar bg-success" style="width:${pct}%"></div></div>
  <div class="d-flex justify-content-between mt-2 small-muted"><span>${doneSeries}/${totalSeries} séries concluídas</span><span>${pct}%</span></div>
+ ${allDone ? `<div class="d-grid mt-3"><button class="btn btn-success" onclick="openCheckoutModal('${currentDay}')">📸 Tirar foto do check</button></div>` : ''}
 </div></div>
 ${exercises.length ? `<div class="row g-3">${exercises.map(exercise => renderExerciseCard(currentDay, exercise)).join('')}</div>` : `<div class="card border-0 shadow-sm"><div class="card-body text-center py-5"><div style="font-size:4rem">${DAYS[currentDay].icon}</div><h4>Nenhum exercício neste dia</h4><p class="text-muted">Adicione exercícios para esse dia da semana.</p><button class="btn btn-dark" onclick="openExerciseForm('${currentDay}')">+ Adicionar exercício</button></div></div>`}
 `;
@@ -396,6 +512,7 @@ return `<div class="col-12 col-lg-6"><div class="card exercise-card ${done ? 'do
  </div></div></div>`;
 }
 function updateSeries(day, id, index, field, value) {
+markSessionStarted(day);
 const record = getRecord(todayKey(), day, id);
 const exercise = (state.exercises[day] || []).find(item => item.id === id);
 if (!record.series[index]) record.series[index] = {};
@@ -403,6 +520,7 @@ record.series[index][field] = Number(value) || 0;
 if (exercise && field === 'weight') {
  exercise.weight = Number(value) || 0;
 }
+updateSessionCompletion(day);
 save();
 page === 'today' ? renderToday() : renderExercises();
 }
@@ -418,6 +536,7 @@ const allExercises = state.exercises[day] || [];
 return allExercises.length > 0 && allExercises.every(item => isExerciseCompleted(day, item.id));
 }
 function toggleSeries(day, id, index) {
+markSessionStarted(day);
 const record = getRecord(todayKey(), day, id);
 const exercise = (state.exercises[day] || []).find(item => item.id === id);
 const total = Number(exercise?.sets || 3);
@@ -426,12 +545,14 @@ const previousExerciseDone = isExerciseCompleted(day, id);
 record.series[index].done = !record.series[index].done;
 record.done = Array.from({ length: total }, (_, seriesIndex) => !!record.series[seriesIndex]?.done).every(Boolean);
 record.updatedAt = new Date().toISOString();
+updateSessionCompletion(day);
 save();
 page === 'today' ? renderToday() : renderExercises();
 if (record.series[index].done) openTimer();
-if (!previousExerciseDone && record.done && areAllExercisesDoneForDay(day)) openCheckoutModal();
+if (!previousExerciseDone && record.done && areAllExercisesDoneForDay(day)) openCheckoutModal(day);
 }
 function toggleExerciseDone(day, id) {
+markSessionStarted(day);
 const record = getRecord(todayKey(), day, id);
 const exercise = (state.exercises[day] || []).find(item => item.id === id);
 const total = Number(exercise?.sets || 3);
@@ -439,9 +560,10 @@ const previousExerciseDone = isExerciseCompleted(day, id);
 record.series = Array.from({ length: total }, (_, index) => ({ ...record.series[index], done: !record.done }));
 record.done = !record.done;
 record.updatedAt = new Date().toISOString();
+updateSessionCompletion(day);
 save();
 page === 'today' ? renderToday() : renderExercises();
-if (!previousExerciseDone && record.done && areAllExercisesDoneForDay(day)) openCheckoutModal();
+if (!previousExerciseDone && record.done && areAllExercisesDoneForDay(day)) openCheckoutModal(day);
 }
 function renderExercises() {
 const app = document.getElementById('app');
@@ -517,78 +639,286 @@ ${[['Treinos', stats.workouts], ['Séries', stats.series], ['Volume', stats.volu
 drawVolumeChart();
 renderExerciseChart();
 }
-function getCurrentExerciseSummary(day = currentDay) {
-const exercises = state.exercises[day] || [];
-const labels = exercises.map(ex => ex.name);
-const totalCalories = exercises.reduce((sum, item) => sum + Math.max(25, Number(item.sets || 3) * Number(item.reps || 10) * 0.6), 0);
-return { labels, totalCalories: Math.round(totalCalories), date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) };
+function formatDuration(minutes) {
+ if (!Number.isFinite(minutes) || minutes <= 0) return null;
+ if (minutes < 60) return `${minutes} min`;
+ const h = Math.floor(minutes / 60);
+ const m = minutes % 60;
+ return m ? `${h}h ${m}m` : `${h}h`;
 }
-function openCheckoutModal() {
-const modal = new bootstrap.Modal('#checkoutModal');
-document.getElementById('checkoutPhotoInput').value = '';
-document.getElementById('checkoutPreviewWrap').classList.add('d-none');
-document.getElementById('saveCheckoutBtn').classList.add('d-none');
-const preview = document.getElementById('checkoutPreview');
-preview.removeAttribute('src');
-modal.show();
+function getCheckoutSummary(day = checkoutDraft.day, date = checkoutDraft.date) {
+ const completedAt = getSessionMeta(date, day, false)?.completedAt || new Date().toISOString();
+ const startedAt = getSessionMeta(date, day, false)?.startedAt;
+ const records = state.workouts?.[date]?.[day] || {};
+ const doneExercises = (state.exercises[day] || []).filter(exercise => {
+  const record = records[exercise.id];
+  if (!record) return false;
+  if (record.done) return true;
+  return (record.series || []).some(item => item?.done);
+ });
+ const groups = [...new Set(doneExercises.map(item => (MUSCLE_GROUPS[item.group]?.label || item.group || '').toUpperCase()).filter(Boolean))];
+ const sequence = getWorkoutSequence(date, day);
+ const durationMinutes = startedAt ? Math.max(1, Math.round((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 60000)) : null;
+ const stats = [];
+ const formattedDuration = formatDuration(durationMinutes);
+ if (formattedDuration) stats.push({ label: 'Duração', value: formattedDuration });
+ if (doneExercises.length) stats.push({ label: 'Exercícios', value: String(doneExercises.length) });
+ if (sequence) stats.push({ label: 'Treino #', value: String(sequence) });
+ return {
+  dateTime: new Date(completedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
+  workoutLabel: groups.join(' + ') || DAYS[day]?.label?.toUpperCase() || 'TREINO',
+  athleteName: state.settings.profileName?.trim() || '',
+  hideName: checkoutDraft.hideName,
+  stats: stats.slice(0, 3),
+  motivation: CHECKOUT_MOTIVATION[sequence ? sequence % CHECKOUT_MOTIVATION.length : 0]
+ };
+}
+function updateCheckoutActionButtons(hasPhoto) {
+ document.getElementById('saveCheckoutBtn').classList.toggle('d-none', !hasPhoto);
+ document.getElementById('shareCheckoutBtn').classList.toggle('d-none', !hasPhoto);
+}
+function resetCheckoutDraft({ clearPhoto } = { clearPhoto: false }) {
+ if (clearPhoto && checkoutDraft.sourceUrl?.startsWith('blob:')) URL.revokeObjectURL(checkoutDraft.sourceUrl);
+ if (clearPhoto) checkoutDraft.sourceUrl = '';
+ checkoutDraft.hideName = !!(document.getElementById('checkoutHideName')?.checked ?? state.settings.hideNameOnShare);
+ document.getElementById('checkoutPreviewWrap').classList.toggle('d-none', !checkoutDraft.sourceUrl);
+ updateCheckoutActionButtons(!!checkoutDraft.sourceUrl);
+}
+function openCheckoutModal(day = currentDay, date = todayKey()) {
+ checkoutDraft.day = day;
+ checkoutDraft.date = date;
+ updateSessionCompletion(day, date);
+ const hideByDefault = !!state.settings.hideNameOnShare;
+ checkoutDraft.hideName = hideByDefault;
+ document.getElementById('checkoutHideName').checked = hideByDefault;
+ document.getElementById('checkoutPhotoInput').value = '';
+ resetCheckoutDraft({ clearPhoto: true });
+ setCheckoutTemplate(checkoutDraft.template);
+ setCheckoutFormat(checkoutDraft.format);
+ renderCheckoutPreviewCard();
+ new bootstrap.Modal('#checkoutModal').show();
+}
+function openCheckoutFilePicker(mode) {
+ const input = document.getElementById('checkoutPhotoInput');
+ if (mode === 'camera') input.setAttribute('capture', 'environment');
+ else input.removeAttribute('capture');
+ input.click();
 }
 function handleCheckoutPhoto(file) {
-if (!file) return;
-const reader = new FileReader();
-reader.onload = () => {
-  const preview = document.getElementById('checkoutPreview');
-  preview.src = reader.result;
-  document.getElementById('checkoutPreviewWrap').classList.remove('d-none');
-  document.getElementById('saveCheckoutBtn').classList.remove('d-none');
-};
-reader.readAsDataURL(file);
+ if (!file) {
+  toast('Seleção de imagem cancelada.');
+  return;
+ }
+ if (!file.type.startsWith('image/')) {
+  toast('Selecione um arquivo de imagem válido.');
+  return;
+ }
+ if (checkoutDraft.sourceUrl?.startsWith('blob:')) URL.revokeObjectURL(checkoutDraft.sourceUrl);
+ checkoutDraft.sourceUrl = URL.createObjectURL(file);
+ document.getElementById('checkoutPhotoInput').value = '';
+ resetCheckoutDraft();
+ renderCheckoutPreviewCard();
 }
-function buildCheckoutCanvas() {
-const photo = document.getElementById('checkoutPreview');
-const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
-const summary = getCurrentExerciseSummary();
-const exercisesText = summary.labels.length ? summary.labels.join(' • ') : 'Treino concluído';
-const width = 1200;
-const height = 1600;
-canvas.width = width;
-canvas.height = height;
-
-ctx.fillStyle = '#0f172a';
-ctx.fillRect(0, 0, width, height);
-
-const image = new Image();
-image.crossOrigin = 'anonymous';
-image.src = photo.src;
-
-return new Promise((resolve) => {
-  image.onload = () => {
-    const imgRatio = image.width / image.height;
-    const targetWidth = width;
-    const targetHeight = width / imgRatio;
-    const offsetY = Math.max(0, (height - targetHeight) / 2);
-    ctx.drawImage(image, 0, offsetY, targetWidth, targetHeight);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.62)';
-    ctx.fillRect(0, height - 400, width, 400);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 44px sans-serif';
-    ctx.fillText('Treino concluído', 60, height - 310);
-    ctx.font = '600 26px sans-serif';
-    ctx.fillText(summary.date, 60, height - 270);
-
-    ctx.font = '600 30px sans-serif';
-    const line1 = 'Tipos de exercícios:';
-    ctx.fillText(line1, 60, height - 215);
-    ctx.font = '500 24px sans-serif';
-    wrapText(ctx, exercisesText, 60, height - 170, width - 120, 32, 3);
-
-    ctx.font = '700 34px sans-serif';
-    ctx.fillText(`Calorias estimadas: ${summary.totalCalories} kcal`, 60, height - 80);
-    resolve(canvas.toDataURL('image/jpeg', 0.92));
-  };
-  image.onerror = () => resolve(null);
-});
+function redoCheckoutPhoto() {
+ openCheckoutFilePicker('camera');
+}
+function setCheckoutTemplate(template) {
+ if (!CHECKOUT_TEMPLATES[template]) return;
+ checkoutDraft.template = template;
+ document.getElementById('checkoutTemplateNeon').classList.toggle('active', template === 'neon');
+ document.getElementById('checkoutTemplateGraphite').classList.toggle('active', template === 'graphite');
+ renderCheckoutPreviewCard();
+}
+function setCheckoutFormat(format) {
+ checkoutDraft.format = format === 'feed' ? 'feed' : 'story';
+ document.getElementById('checkoutFormatStory').classList.toggle('active', checkoutDraft.format === 'story');
+ document.getElementById('checkoutFormatFeed').classList.toggle('active', checkoutDraft.format === 'feed');
+ renderCheckoutPreviewCard();
+}
+function renderCheckoutPreviewCard() {
+ const summary = getCheckoutSummary();
+ const template = CHECKOUT_TEMPLATES[checkoutDraft.template] || CHECKOUT_TEMPLATES.neon;
+ const preview = document.getElementById('checkoutCardPreview');
+ const photo = document.getElementById('checkoutCardPhoto');
+ const overlay = document.getElementById('checkoutCardOverlay');
+ preview.classList.toggle('feed', checkoutDraft.format === 'feed');
+ photo.style.backgroundImage = checkoutDraft.sourceUrl ? `url('${checkoutDraft.sourceUrl}')` : 'linear-gradient(135deg,#0f172a,#111827)';
+ overlay.style.display = 'none';
+ document.querySelector('.checkout-badge-dot').style.background = template.accent;
+ const badge = preview.querySelector('.checkout-badge');
+ if (badge) badge.style.background = template.chip;
+ const infoPanel = document.getElementById('checkoutCardInfoPanel');
+ if (infoPanel) infoPanel.style.background = template.panel;
+ document.getElementById('checkoutPreviewDate').textContent = summary.dateTime;
+ document.getElementById('checkoutPreviewName').textContent = summary.hideName ? 'Atleta' : (summary.athleteName || 'Atleta');
+ document.getElementById('checkoutPreviewWorkout').textContent = summary.workoutLabel;
+ document.getElementById('checkoutPreviewMotivation').textContent = summary.motivation;
+ const stats = summary.stats.length ? summary.stats : [{ label: 'Status', value: 'Concluído' }];
+ document.getElementById('checkoutPreviewStats').innerHTML = stats.map(item => `<div class="checkout-stat"><div class="value">${esc(item.value)}</div><div class="label">${esc(item.label)}</div></div>`).join('');
+}
+function loadImage(src) {
+ return new Promise((resolve, reject) => {
+  const image = new Image();
+  image.onload = () => resolve(image);
+  image.onerror = reject;
+  image.src = src;
+ });
+}
+function drawImageCover(ctx, image, x, y, width, height) {
+ const scale = Math.max(width / image.width, height / image.height);
+ const drawWidth = image.width * scale;
+ const drawHeight = image.height * scale;
+ const dx = x + (width - drawWidth) / 2;
+ const dy = y + (height - drawHeight) / 2;
+ ctx.drawImage(image, dx, dy, drawWidth, drawHeight);
+}
+async function buildCheckoutImageBlob() {
+ if (!checkoutDraft.sourceUrl) return null;
+ const isStory = checkoutDraft.format === 'story';
+ const width = 1080;
+ const height = isStory ? 1920 : 1350;
+ const safeX = 72;
+ const safeBottom = 68;
+ const panelTop = Math.round(height * 0.64);
+ const summary = getCheckoutSummary();
+ const template = CHECKOUT_TEMPLATES[checkoutDraft.template] || CHECKOUT_TEMPLATES.neon;
+ const canvas = document.createElement('canvas');
+ canvas.width = width;
+ canvas.height = height;
+ const ctx = canvas.getContext('2d');
+ ctx.fillStyle = '#0b1118';
+ ctx.fillRect(0, 0, width, height);
+ try {
+  const image = await loadImage(checkoutDraft.sourceUrl);
+  drawImageCover(ctx, image, 0, 0, width, height);
+ } catch (error) {
+  return null;
+ }
+ ctx.fillStyle = template.panel;
+ ctx.fillRect(38, panelTop, width - 76, height - panelTop - 36);
+ ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+ ctx.lineWidth = 2;
+ roundRect(ctx, 38, panelTop, width - 76, height - panelTop - 36, 24, false, true);
+ ctx.fillStyle = template.chip;
+ roundRect(ctx, safeX, 48, 520, 54, 27, true, false);
+ ctx.fillStyle = template.accent;
+ ctx.beginPath();
+ ctx.arc(safeX + 24, 76, 10, 0, Math.PI * 2);
+ ctx.fill();
+ ctx.fillStyle = '#ffffff';
+ ctx.font = '700 30px sans-serif';
+ ctx.fillText('TREINO CONCLUÍDO', safeX + 48, 86);
+ ctx.font = '600 28px sans-serif';
+ ctx.fillText(summary.dateTime, safeX, 146);
+ ctx.fillStyle = '#9ca3af';
+ ctx.font = '600 24px sans-serif';
+ ctx.textAlign = 'right';
+ ctx.fillText('Meu Treino', width - safeX, 86);
+ ctx.textAlign = 'left';
+ const footerY = panelTop + 88;
+ ctx.fillStyle = '#ffffff';
+ ctx.font = '800 52px sans-serif';
+ ctx.fillText(summary.hideName ? 'Atleta' : (summary.athleteName || 'Atleta'), safeX, footerY);
+ ctx.font = '700 32px sans-serif';
+ wrapText(ctx, summary.workoutLabel, safeX, footerY + 50, width - safeX * 2, 40, 2);
+ const stats = summary.stats.length ? summary.stats : [{ label: 'Status', value: 'Concluído' }];
+ const boxY = footerY + 130;
+ const gap = 16;
+ const boxWidth = (width - safeX * 2 - gap * 2) / 3;
+ const row = stats.length >= 3 ? stats.slice(0, 3) : [...stats, ...Array.from({ length: 3 - stats.length }, () => ({ label: '', value: '' }))];
+ row.forEach((item, index) => {
+  const x = safeX + index * (boxWidth + gap);
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.lineWidth = 2;
+  roundRect(ctx, x, boxY, boxWidth, 112, 16, true, true);
+  if (!item.value) return;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '800 31px sans-serif';
+  ctx.fillText(item.value, x + 15, boxY + 50);
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '600 22px sans-serif';
+  ctx.fillText(item.label, x + 15, boxY + 83);
+ });
+ ctx.fillStyle = template.accent;
+ ctx.font = '600 24px sans-serif';
+ ctx.fillText(summary.motivation, safeX, height - safeBottom);
+ return await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+}
+function setCheckoutBusy(on, actionLabel = 'Processando') {
+ checkoutDraft.busy = on;
+ const shareBtn = document.getElementById('shareCheckoutBtn');
+ const saveBtn = document.getElementById('saveCheckoutBtn');
+ [shareBtn, saveBtn].forEach(button => {
+  if (!button) return;
+  button.disabled = on;
+ });
+ if (shareBtn) shareBtn.textContent = on ? `⏳ ${actionLabel}...` : '📤 Compartilhar';
+ if (saveBtn) saveBtn.textContent = on ? `⏳ ${actionLabel}...` : '💾 Salvar foto';
+}
+function downloadBlob(blob) {
+ const link = document.createElement('a');
+ const url = URL.createObjectURL(blob);
+ link.href = url;
+ link.download = `checkout-treino-${todayKey()}-${checkoutDraft.format}.jpg`;
+ link.click();
+ setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+async function shareCheckoutImage() {
+ if (!checkoutDraft.sourceUrl) {
+  toast('Selecione uma foto antes de compartilhar.');
+  return;
+ }
+ setCheckoutBusy(true, 'Gerando');
+ const blob = await buildCheckoutImageBlob();
+ if (!blob) {
+  setCheckoutBusy(false);
+  toast('Não foi possível gerar a imagem final.');
+  return;
+ }
+ const file = new File([blob], `checkout-treino-${todayKey()}.jpg`, { type: 'image/jpeg' });
+ try {
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+   await navigator.share({ files: [file], title: 'Treino concluído', text: 'Meu check de treino 💪' });
+   toast('Imagem pronta e compartilhada.');
+  } else {
+   downloadBlob(blob);
+   toast('Seu navegador não suporta compartilhamento direto. A imagem foi baixada.');
+  }
+ } catch (error) {
+  if (error?.name === 'AbortError') toast('Compartilhamento cancelado.');
+  else toast('Não foi possível compartilhar a imagem.');
+ } finally {
+  setCheckoutBusy(false);
+ }
+}
+async function saveCheckoutImage() {
+ if (!checkoutDraft.sourceUrl) {
+  toast('Selecione uma foto antes de salvar.');
+  return;
+ }
+ setCheckoutBusy(true, 'Gerando');
+ const blob = await buildCheckoutImageBlob();
+ if (!blob) {
+  setCheckoutBusy(false);
+  toast('Não foi possível gerar a imagem final.');
+  return;
+ }
+ downloadBlob(blob);
+ setCheckoutBusy(false);
+ toast('Imagem salva no dispositivo.');
+}
+function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+ const r = Math.min(radius, width / 2, height / 2);
+ ctx.beginPath();
+ ctx.moveTo(x + r, y);
+ ctx.arcTo(x + width, y, x + width, y + height, r);
+ ctx.arcTo(x + width, y + height, x, y + height, r);
+ ctx.arcTo(x, y + height, x, y, r);
+ ctx.arcTo(x, y, x + width, y, r);
+ ctx.closePath();
+ if (fill) ctx.fill();
+ if (stroke) ctx.stroke();
 }
 function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
 const words = text.split(' ');
@@ -607,25 +937,6 @@ if (current) lines.push(current);
 for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
   ctx.fillText(lines[i], x, y + i * lineHeight);
 }
-}
-function saveCheckoutImage() {
-const preview = document.getElementById('checkoutPreview');
-if (!preview.src) {
-  toast('Selecione uma foto antes de salvar.');
-  return;
-}
-buildCheckoutCanvas().then((dataUrl) => {
-  if (!dataUrl) {
-    toast('Não foi possível processar a imagem.');
-    return;
-  }
-  const link = document.createElement('a');
-  link.href = dataUrl;
-  link.download = `checkout-treino-${new Date().toISOString().slice(0, 10)}.jpg`;
-  link.click();
-  bootstrap.Modal.getInstance(document.getElementById('checkoutModal'))?.hide();
-  toast('Foto salva com o resumo do treino.');
-});
 }
 function allExerciseOptions() {
 const all = [];
@@ -709,12 +1020,14 @@ charts.push(new Chart(document.getElementById('exerciseChart'), {
 }
 function renderSettingsPage() {
 const app = document.getElementById('app');
-app.innerHTML = `<div class="card border-0 shadow-sm mb-3"><div class="card-body"><h4>Configurações</h4><p class="text-muted">As categorias agora são dias da semana.</p><div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" ${state.settings.dark ? 'checked' : ''} onchange="toggleTheme(this.checked)"><label class="form-check-label">Modo escuro</label></div><div class="row"><div class="col-md-4"><label class="form-label">Descanso padrão (s)</label><input id="restPage" type="number" class="form-control" min="0" value="${state.settings.restDefault}" onchange="state.settings.restDefault=Number(this.value)||90;save()"></div></div></div></div>
+app.innerHTML = `<div class="card border-0 shadow-sm mb-3"><div class="card-body"><h4>Configurações</h4><p class="text-muted">As categorias agora são dias da semana.</p><div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" ${state.settings.dark ? 'checked' : ''} onchange="toggleTheme(this.checked)"><label class="form-check-label">Modo escuro</label></div><div class="row g-3"><div class="col-md-4"><label class="form-label">Descanso padrão (s)</label><input id="restPage" type="number" class="form-control" min="0" value="${state.settings.restDefault}" onchange="state.settings.restDefault=Number(this.value)||90;save()"></div><div class="col-md-4"><label class="form-label">Nome para cartão</label><input id="profileNamePage" class="form-control" maxlength="42" value="${esc(state.settings.profileName || '')}" onchange="state.settings.profileName=this.value.trim();save()"></div><div class="col-md-4"><label class="form-label d-block">&nbsp;</label><div class="form-check form-switch"><input id="hideNamePageSwitch" class="form-check-input" type="checkbox" ${state.settings.hideNameOnShare ? 'checked' : ''} onchange="state.settings.hideNameOnShare=this.checked;save()"><label class="form-check-label" for="hideNamePageSwitch">Ocultar nome no compartilhamento</label></div></div></div></div></div>
 <div class="card border-0 shadow-sm"><div class="card-body"><h5>Dados</h5><div class="d-grid d-md-flex gap-2"><button class="btn btn-dark" onclick="exportFull()">⬇️ Exportar tudo</button><button class="btn btn-outline-dark" onclick="exportHistory()">⬇️ Histórico</button><button class="btn btn-outline-dark" onclick="exportExercises()">⬇️ Exercícios</button><button class="btn btn-outline-primary" onclick="triggerImport()">⬆️ Importar</button><button class="btn btn-outline-danger" onclick="resetAll()">🗑️ Apagar tudo</button></div></div></div>`;
 }
 function openSettings() {
 document.getElementById('darkModeSwitch').checked = state.settings.dark;
 document.getElementById('restDefault').value = state.settings.restDefault;
+document.getElementById('profileNameInput').value = state.settings.profileName || '';
+document.getElementById('hideNameSwitch').checked = !!state.settings.hideNameOnShare;
 new bootstrap.Modal('#settingsModal').show();
 }
 function toggleTheme(on) {
@@ -804,10 +1117,10 @@ download(`meu-treino-backup-${todayKey()}.json`, state);
 toast('Backup completo exportado.');
 }
 function exportHistory() {
-download(`meu-treino-historico-${todayKey()}.json`, { version: 3, workouts: state.workouts });
+download(`meu-treino-historico-${todayKey()}.json`, { version: 4, workouts: state.workouts, sessionMeta: state.sessionMeta });
 }
 function exportExercises() {
-download(`meu-treino-exercicios-${todayKey()}.json`, { version: 3, exercises: state.exercises });
+download(`meu-treino-exercicios-${todayKey()}.json`, { version: 4, exercises: state.exercises, settings: { profileName: state.settings.profileName, hideNameOnShare: state.settings.hideNameOnShare } });
 }
 function triggerImport() {
 document.getElementById('importInput').click();
@@ -860,10 +1173,29 @@ state.settings.dark = event.target.checked;
 document.body.classList.toggle('dark', event.target.checked);
 save();
 });
+document.getElementById('profileNameInput')?.addEventListener('change', event => {
+ state.settings.profileName = event.target.value.trim();
+ save();
+});
+document.getElementById('hideNameSwitch')?.addEventListener('change', event => {
+ state.settings.hideNameOnShare = event.target.checked;
+ save();
+});
+document.getElementById('checkoutHideName')?.addEventListener('change', event => {
+ checkoutDraft.hideName = event.target.checked;
+ renderCheckoutPreviewCard();
+});
+document.getElementById('checkoutModal')?.addEventListener('hidden.bs.modal', () => {
+ if (checkoutDraft.sourceUrl?.startsWith('blob:')) URL.revokeObjectURL(checkoutDraft.sourceUrl);
+ checkoutDraft.sourceUrl = '';
+ updateCheckoutActionButtons(false);
+ document.getElementById('checkoutPreviewWrap').classList.add('d-none');
+});
 function boot() {
 document.body.classList.toggle('dark', !!state.settings.dark);
 currentDay = isDayKey(state.settings.lastDay) ? state.settings.lastDay : dayFromDate(new Date());
 state.settings.lastDay = currentDay;
+ checkoutDraft.hideName = !!state.settings.hideNameOnShare;
 save();
 renderHeader();
 showToday();
